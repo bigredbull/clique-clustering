@@ -88,7 +88,7 @@ pos = {
 G = test_graph(2)
 
 res = cluster(G)
-draw(res[1], res[0])
+#draw(res[1], res[0])
 
-res = louvain(G)
-draw(res[1], res[0])
+#res = louvain(G)
+#draw(res[1], res[0])
