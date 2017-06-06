@@ -29,7 +29,7 @@ class Status(object):
            Perform a deep copy of status.
         '''
         new_status = Status()
-        new_status.node2com = deepcopy(self.node2com)
+        new_status.node2com = self.node2com.copy()
         new_status.com2nodes = deepcopy(self.com2nodes)
         new_status.internals = self.internals.copy()
         new_status.degrees = self.degrees.copy()
@@ -122,8 +122,9 @@ def cliq2com(cliq, G, status):
         res = merge_coms(res, c, G, status)
 
         
-#@profile
-def modularity(status, verbose=0):
+@profile
+def modularity(status, verbose=0, changed=None):
+    changed = changed if changed else set(status.node2com.values())
     links = float(status.n_edges)
     result = 0.
 
@@ -131,8 +132,17 @@ def modularity(status, verbose=0):
         print('\n     Calculating modularity...')
         print('     Number of edges in a graph: {}'.format(links))
 
-    #print(status.node2com.values())
-    for community in set(status.node2com.values()):
+#    for community in set(status.node2com.values()):
+#        in_degree = status.internals.get(community, 0.)
+#        degree = status.degrees.get(community, 0.)
+#
+#        if verbose > 1:
+#            print('     Community: {}, in-degree: {}, degree: {}'.format(community, in_degree, degree))
+#
+#        if links > 0:
+#            result += in_degree / links - ((degree / (2. * links)) ** 2)
+        
+    for community in changed:
         in_degree = status.internals.get(community, 0.)
         degree = status.degrees.get(community, 0.)
         com_mod = 0
@@ -144,17 +154,21 @@ def modularity(status, verbose=0):
             com_mod += in_degree / links - ((degree / (2. * links)) ** 2)
 
         status.com_mods[community] = com_mod
-        result += com_mod
 
-    if len(status.com_mods.keys()) != len(status.com2nodes.keys()):
-        raise Error('Mismatching number of communities')
+#    if len(status.com_mods.keys()) != len(status.com2nodes.keys()):
+#        raise Exception('Mismatch: {} /= {}'.format(status.com_mods.keys() , status.com2nodes.keys()))
 
     if verbose:
         print('     Result: {}\n'.format(result))
 
-    return result
+    modularity = sum(status.com_mods.values())
 
+#    if abs(modularity - result) > 0.000001:
+#        print("ERROR: {} /= {}".format(modularity, result))
 
+    return modularity
+
+@profile
 def cluster(G):
     max_mod = -1
     touched = set()
@@ -202,8 +216,8 @@ def cluster(G):
                 continue
 
             _status = status.copy()
-            _com = merge_coms(com, com_, G, _status)
-            new_mod = modularity(_status, 0)
+            new_com = merge_coms(com, com_, G, _status)
+            new_mod = modularity(_status, 0, [new_com])
 
             if new_mod > max_mod:
                 max_mod = new_mod
