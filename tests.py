@@ -84,11 +84,22 @@ pos = {
    33: [0.76616909,  0.46319817]
 } 
 
+import time
 
 G = test_graph(2)
 
+start = time.time()
 res = cluster(G)
+print(time.time() - start)
+
 #draw(res[1], res[0])
 
+#start = time.time()
 #res = louvain(G)
+#print(time.time() - start)
+
 #draw(res[1], res[0])
+
+# 10000 --> 46.827
+# 5000 --> 9.411
+# 2500 --> 1.846

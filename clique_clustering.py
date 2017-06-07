@@ -29,13 +29,13 @@ class Status(object):
            Perform a deep copy of status.
         '''
         new_status = Status()
-        new_status.node2com = self.node2com.copy()
+        new_status.node2com = self.node2com
         new_status.com2nodes = self.com2nodes
-        new_status.internals = self.internals.copy()
-        new_status.degrees = self.degrees.copy()
-        new_status.gdegrees = self.gdegrees.copy()
+        new_status.internals = self.internals
+        new_status.degrees = self.degrees
+        new_status.gdegrees = self.gdegrees
         new_status.n_edges = self.n_edges
-        new_status.com_mods = self.com_mods.copy()
+        new_status.com_mods = self.com_mods
         return new_status
 
     def init(self, graph, part=None):
@@ -78,6 +78,7 @@ class State:
         self.degrees_t = None
         self.degrees_s = None
         self.mod_s = None
+        self.mod_t = None
         self.nodes_s = None
         self.nodes_t = None
         self.moved = []
@@ -88,13 +89,14 @@ class State:
         status.degrees[self.com_t] = self.degrees_t
         status.degrees[self.com_s] = self.degrees_s
         status.com_mods[self.com_s] = self.mod_s
+        status.com_mods[self.com_t] = self.mod_t
         status.com2nodes[self.com_t] = self.nodes_t
         status.com2nodes[self.com_s] = self.nodes_s
 
         for v in self.moved:
             status.node2com[v] = self.com_s
             
-        
+#@profile        
 def merge_coms(l_comA, l_comB, G, status, state=None, verb=False):
     if verb:
        print('\n\nMerging: {} + {}'.format(l_comA, l_comB))
@@ -127,6 +129,7 @@ def merge_coms(l_comA, l_comB, G, status, state=None, verb=False):
         state.degrees_s = status.degrees[s_label]
         state.degrees_t = status.degrees[t_label]
         state.mod_s = status.com_mods[s_label]
+        state.mod_t = status.com_mods[t_label]
         state.nodes_s = status.com2nodes[s_label].copy()
         state.nodes_t = status.com2nodes[t_label].copy()   
 
@@ -157,10 +160,12 @@ def merge_coms(l_comA, l_comB, G, status, state=None, verb=False):
 
 def cliq2com(cliq, G, status):
     coms = list(set([status.node2com[v] for v in cliq]))
-    res = coms[0]
+    new_com = coms[0]
 
     for c in coms:
-        res = merge_coms(res, c, G, status)
+        new_com = merge_coms(new_com, c, G, status)
+
+    return new_com
 
         
 #@profile
@@ -234,8 +239,8 @@ def cluster(G):
 
         touched = touched.union(p)
 
-        cliq2com(p, G, _status)
-        new_mod = modularity(_status, 0)
+        new_com = cliq2com(p, G, _status)
+        new_mod = modularity(_status, 0, [new_com])
 
         if new_mod > max_mod:
             max_mod = new_mod
@@ -243,8 +248,11 @@ def cluster(G):
         else:
             continue
 
+    min_del = 0.0000001
     merged = set()
+    used = set()
     coms = set(status.node2com.values())
+    count = 0
 
     print('Phase 2... {} communities'.format(len(coms)))
 
@@ -254,8 +262,13 @@ def cluster(G):
             continue
 
         for com_ in coms:
-            if com == com_ or com_ in merged:
+            if com == com_ or com_ in merged or frozenset([com, com_]) in used:
                 continue
+
+            used.add(frozenset([com, com_]))
+            count += 1
+
+            #print('Merging: {} + {}'.format(com, com_))
 
             _status = status
             state = State()
@@ -267,14 +280,26 @@ def cluster(G):
                 max_mod = new_mod
                 status = _status
                 merged.add(com + com_ - new_com)
+
+                if min_del > (new_mod - max_mod):
+                    print('Merged {} times.'.format(count))
+                    print('Final modularity: {}'.format(modularity(status, 0)))
+                    # print('Final partition: {}'.format(relabel(status.node2com)))
+                    return (status.node2com, G)
+                
                 break
             else:
+                print('Merged {} times.'.format(count))
+                print('Final modularity: {}'.format(modularity(status, 0)))
+                # print('Final partition: {}'.format(relabel(status.node2com)))
+                return (status.node2com, G)
+                #print("EHHHH...")
                 #print('After merge: {}'.format(_status))
                 #print('Reversing... ')
                 state.reverse(_status)
                 #print('After reverse: {}'.format(_status))
                 
-
+    print('Merged {} times.'.format(count))
     print('Final modularity: {}'.format(modularity(status, 0)))
     # print('Final partition: {}'.format(relabel(status.node2com)))
     return (status.node2com, G)
