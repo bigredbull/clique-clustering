@@ -30,7 +30,7 @@ class Status(object):
         '''
         new_status = Status()
         new_status.node2com = self.node2com.copy()
-        new_status.com2nodes = self.com2nodes.copy()
+        new_status.com2nodes = self.com2nodes
         new_status.internals = self.internals.copy()
         new_status.degrees = self.degrees.copy()
         new_status.gdegrees = self.gdegrees.copy()
@@ -95,8 +95,9 @@ class State:
             status.node2com[v] = self.com_s
             
         
-def merge_coms(l_comA, l_comB, G, status, state=None):
-    #print('\n\nMerging: {} + {}'.format(l_comA, l_comB))
+def merge_coms(l_comA, l_comB, G, status, state=None, verb=False):
+    if verb:
+       print('\n\nMerging: {} + {}'.format(l_comA, l_comB))
     
     if l_comA == l_comB:
         return l_comA
@@ -104,7 +105,8 @@ def merge_coms(l_comA, l_comB, G, status, state=None):
     comA = status.com2nodes[l_comA]
     comB = status.com2nodes[l_comB]
 
-    #print('Communities:\n1: {}\n2: {}'.format(comA, comB))
+    if verb:
+       print('Communities:\n1: {}\n2: {}'.format(comA, comB))
 
     if len(comA) > len(comB):
         target = comA
@@ -116,6 +118,17 @@ def merge_coms(l_comA, l_comB, G, status, state=None):
         t_label = l_comB
         source = comA
         s_label = l_comA
+
+    if state:
+        state.com_t = t_label
+        state.com_s = s_label
+        state.internals_s = status.internals[s_label]
+        state.internals_t = status.internals[t_label]
+        state.degrees_s = status.degrees[s_label]
+        state.degrees_t = status.degrees[t_label]
+        state.mod_s = status.com_mods[s_label]
+        state.nodes_s = status.com2nodes[s_label].copy()
+        state.nodes_t = status.com2nodes[t_label].copy()   
 
     diff = source - target
 
@@ -134,15 +147,6 @@ def merge_coms(l_comA, l_comB, G, status, state=None):
         if state:
             state.moved.append(v)
 
-    if state:
-        state.internals_s = status.internals[s_label]
-        state.internals_t = status.internals[t_label]
-        state.degrees_s = status.degrees[s_label]
-        state.degrees_t = status.degrees[t_label]
-        state.mod_s = status.com_mods[s_label]
-        state.nodes_s = status.com2nodes[s_label].copy()
-        state.nodes_t = status.com2nodes[t_label].copy()
-
     del status.internals[s_label]
     del status.degrees[s_label]
     del status.com2nodes[s_label]
@@ -159,7 +163,7 @@ def cliq2com(cliq, G, status):
         res = merge_coms(res, c, G, status)
 
         
-@profile
+#@profile
 def modularity(status, verbose=0, changed=None):
     changed = changed if changed else set(status.node2com.values())
     links = float(status.n_edges)
@@ -206,7 +210,7 @@ def modularity(status, verbose=0, changed=None):
     return modularity
 
 
-@profile
+#@profile
 def cluster(G):
     max_mod = -1
     touched = set()
@@ -253,18 +257,22 @@ def cluster(G):
             if com == com_ or com_ in merged:
                 continue
 
-            _status = status.copy()
+            _status = status
             state = State()
-            new_com = merge_coms(com, com_, G, _status, state)
+            #print('\nBefore merge: {}'.format(_status))
+            new_com = merge_coms(com, com_, G, _status, state, verb=False)
             new_mod = modularity(_status, 0, [new_com])
 
             if new_mod > max_mod:
                 max_mod = new_mod
-                status = _status.copy()
+                status = _status
                 merged.add(com + com_ - new_com)
                 break
             else:
+                #print('After merge: {}'.format(_status))
+                #print('Reversing... ')
                 state.reverse(_status)
+                #print('After reverse: {}'.format(_status))
                 
 
     print('Final modularity: {}'.format(modularity(status, 0)))
