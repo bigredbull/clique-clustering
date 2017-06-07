@@ -94,9 +94,9 @@ print(time.time() - start)
 
 #draw(res[1], res[0])
 
-#start = time.time()
-#res = louvain(G)
-#print(time.time() - start)
+start = time.time()
+res = louvain(G)
+print(time.time() - start)
 
 #draw(res[1], res[0])
 

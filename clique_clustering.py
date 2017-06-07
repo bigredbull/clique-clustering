@@ -223,7 +223,7 @@ def cluster(G):
     status.init(G)
     _status = status.copy()
 
-    polys = [frozenset(c) for c in nx.find_cliques(G) if len(c) > 2]
+    polys = [frozenset(c) for c in nx.find_cliques(G) if len(c) > 1]
     polys.sort(key=lambda p: -len(p))
 
     print('Phase 1... {} cliques'.format(len(polys)))
@@ -265,6 +265,8 @@ def cluster(G):
             if com == com_ or com_ in merged or frozenset([com, com_]) in used:
                 continue
 
+            #print('\n{}'.format(_status))
+
             used.add(frozenset([com, com_]))
             count += 1
 
@@ -280,8 +282,9 @@ def cluster(G):
                 max_mod = new_mod
                 status = _status
                 merged.add(com + com_ - new_com)
+                #print('\nMerged: {} + {}'.format(com, com_))
 
-                if min_del > (new_mod - max_mod):
+                if False and min_del > (new_mod - max_mod):
                     print('Merged {} times.'.format(count))
                     print('Final modularity: {}'.format(modularity(status, 0)))
                     # print('Final partition: {}'.format(relabel(status.node2com)))
@@ -289,11 +292,10 @@ def cluster(G):
                 
                 break
             else:
-                print('Merged {} times.'.format(count))
-                print('Final modularity: {}'.format(modularity(status, 0)))
-                # print('Final partition: {}'.format(relabel(status.node2com)))
-                return (status.node2com, G)
-                #print("EHHHH...")
+                #print('Merged {} times.'.format(count))
+                #print('Final modularity: {}'.format(modularity(status, 0)))
+                #return (status.node2com, G)
+                
                 #print('After merge: {}'.format(_status))
                 #print('Reversing... ')
                 state.reverse(_status)
