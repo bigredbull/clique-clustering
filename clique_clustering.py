@@ -30,7 +30,7 @@ class Status(object):
         '''
         new_status = Status()
         new_status.node2com = self.node2com.copy()
-        new_status.com2nodes = deepcopy(self.com2nodes)
+        new_status.com2nodes = self.com2nodes.copy()
         new_status.internals = self.internals.copy()
         new_status.degrees = self.degrees.copy()
         new_status.gdegrees = self.gdegrees.copy()
@@ -69,8 +69,33 @@ class Status(object):
             self.internals[count] = 0
             count += 1
 
+class State:
+    def __init__(self):
+        self.com_t = None
+        self.com_s = None
+        self.internals_t = None
+        self.internals_s = None
+        self.degrees_t = None
+        self.degrees_s = None
+        self.mod_s = None
+        self.nodes_s = None
+        self.nodes_t = None
+        self.moved = []
+
+    def reverse(self, status):
+        status.internals[self.com_t] = self.internals_t
+        status.internals[self.com_s] = self.internals_s
+        status.degrees[self.com_t] = self.degrees_t
+        status.degrees[self.com_s] = self.degrees_s
+        status.com_mods[self.com_s] = self.mod_s
+        status.com2nodes[self.com_t] = self.nodes_t
+        status.com2nodes[self.com_s] = self.nodes_s
+
+        for v in self.moved:
+            status.node2com[v] = self.com_s
             
-def merge_coms(l_comA, l_comB, G, status):
+        
+def merge_coms(l_comA, l_comB, G, status, state=None):
     #print('\n\nMerging: {} + {}'.format(l_comA, l_comB))
     
     if l_comA == l_comB:
@@ -105,6 +130,18 @@ def merge_coms(l_comA, l_comB, G, status):
         status.degrees[t_label] += degree
         status.node2com[v] = t_label
         status.com2nodes[t_label].add(v)
+
+        if state:
+            state.moved.append(v)
+
+    if state:
+        state.internals_s = status.internals[s_label]
+        state.internals_t = status.internals[t_label]
+        state.degrees_s = status.degrees[s_label]
+        state.degrees_t = status.degrees[t_label]
+        state.mod_s = status.com_mods[s_label]
+        state.nodes_s = status.com2nodes[s_label].copy()
+        state.nodes_t = status.com2nodes[t_label].copy()
 
     del status.internals[s_label]
     del status.degrees[s_label]
@@ -168,6 +205,7 @@ def modularity(status, verbose=0, changed=None):
 
     return modularity
 
+
 @profile
 def cluster(G):
     max_mod = -1
@@ -216,7 +254,8 @@ def cluster(G):
                 continue
 
             _status = status.copy()
-            new_com = merge_coms(com, com_, G, _status)
+            state = State()
+            new_com = merge_coms(com, com_, G, _status, state)
             new_mod = modularity(_status, 0, [new_com])
 
             if new_mod > max_mod:
@@ -224,6 +263,9 @@ def cluster(G):
                 status = _status.copy()
                 merged.add(com + com_ - new_com)
                 break
+            else:
+                state.reverse(_status)
+                
 
     print('Final modularity: {}'.format(modularity(status, 0)))
     # print('Final partition: {}'.format(relabel(status.node2com)))
